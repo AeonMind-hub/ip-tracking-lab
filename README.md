@@ -2,8 +2,8 @@
 
 ## 🔴 Read this first — credential exposure
 
-A live GitHub **fine-grained personal access token** was pasted into this conversation, and it
-was pasted twice. The prefix is deliberately not repeated here: a prefix alone still identifies
+A live GitHub **fine-grained personal access token** was pasted into this conversation, three
+times, and it is the same string each time. The prefix is deliberately not repeated here: a prefix alone still identifies
 your account, and this file is published with the repo. Plain-text tokens like that are harvested
 from chat logs, browser history, clipboard sync, screenshots and paste caches constantly — assume
 it is already public. Do this now, in order:
@@ -17,13 +17,17 @@ it is already public. Do this now, in order:
 4. Never paste a token to any assistant, forum or chat again. To let someone see your
    work, a public repo URL or a read-only `gh api` snippet is enough.
 
-What the token was and is used for, in full: identifying the account, listing repository *names*
-to find a push target, one attempt to create a repository (GitHub refuses this for fine-grained
-tokens), one existence check, and the `git push` of this repo. No repository's file contents were
-read, nothing was written to any repo other than this one. The token lives in the sandbox's `/tmp`
-as a 0600 file and reaches git through an askpass helper, so it is not in `.git/config`, in a
-remote URL, in any commit, or anywhere in this workspace — and it is deleted after the push. If
-you want to check me rather than trust this paragraph, GitHub shows every call a token made:
+What the token is used for, in full: identifying the account, listing repository *names* to find a
+push target, one attempt to create a repository (GitHub refuses this for fine-grained tokens), one
+attempt to flip this repo from public to private (also refused), existence checks, and the
+`git push` of this branch. No repository's file contents were read, and nothing was written to any
+repo other than this one.
+
+You asked for it to be kept for the session, so it lives in the sandbox's `/tmp` as a 0600 file and
+reaches git only through an askpass helper: not in `.git/config`, not in a remote URL, not in any
+commit, not anywhere under the workspace directory that gets snapshotted or downloaded. `/tmp` dies
+with the sandbox, and deleting the token on GitHub ends the access immediately without touching the
+lab. To check me instead of trusting this paragraph, GitHub lists every call a token made:
 Settings → Developer settings → Personal access tokens → the token → **Recent requests**.
 
 ---
