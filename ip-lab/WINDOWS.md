@@ -222,6 +222,19 @@ they are plain text otherwise, so `Get-Content notes\01-pipeline.md` is fine for
 - **`[webcheck] vuln instance never answered /healthz`** - a stale server holds
   `out\shop.sqlite`, or port 8095/8096 is taken: see §6, then rerun.
 - **`Address already in use`** - `netstat -ano | Select-String ":8097"` then `taskkill /PID <pid> /F`.
+- **`git clone` says `destination path ... already exists`** - that means you are still running the
+  unzipped copy, so whatever you just measured is the *old* code (the selftest total is the tell:
+  156 slots there, 159 here). Clone beside it instead of over it, and use the new folder from now on:
+  `git clone --branch main C:\lab\lab.bundle C:\lab\lab-git`. Nothing in the old folder is worth
+  keeping unless you wrote notes in it - `git -C C:\lab\ip-tracking-lab status` will say "not a
+  repository", which is how you confirm it holds no history you would lose.
+- **`webcheck: 1 MISMATCH` on `E4`, or a row saying `unverified`** - the race harness needs two
+  extra single-seat servers, and on Windows Defender can hold each `python.exe` for seconds while it
+  scans. It now waits 30 s per attempt, gives up in ~3 s if the child actually died, retries three
+  times, and re-measures when either side reports `0 wins` (impossible for two live servers). If a
+  row still says `unverified`, the run exits 2 and prints *nothing* about safety - re-run
+  `py tools\webcheck.py --only vuln` alone, and check no other `shop.py` is holding
+  `out\shop.sqlite`. A genuine `MISMATCH` is a different thing: paste the whole table.
 - **Antivirus deletes a file** - it will not: this is source, no binaries, no installers. If it
   quarantines `out\lab_capture.pcap` (a synthetic capture), restore-and-exclude the `out` folder.
 - Anything else: run `py tools\selftest.py` and paste me the FAIL lines. The tools print why they

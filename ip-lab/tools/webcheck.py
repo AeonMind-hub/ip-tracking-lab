@@ -76,7 +76,13 @@ def replay_probe(base: str):
 BEAR = {"Authorization": "Bearer " + FORGED_JWT}
 
 
-def wait_up(base: str, tries: int = 60) -> bool:
+def wait_up(base: str, tries: int = 200) -> bool:
+    """Poll /healthz for up to ~30 s.
+
+    A fresh python process on Windows can be held for seconds by real-time AV scanning, so 60
+    quick tries (9 s) was long enough on my box to pass and short enough on a slower one to fail -
+    and a too-short budget is what turns an environment problem into a wrong verdict about a
+    vulnerability class. Cheap to widen, so widen it."""
     for _ in range(tries):
         try:
             if req(base, "/healthz")[0] == 200:
@@ -223,6 +229,55 @@ def run_race(base: str, n: int = 8, use_post: bool = False) -> int:
     return sum(1 for h in hits if '"ok": true' in h)
 
 
+def start_reason(mode: str) -> str:
+    """Why a spawned instance never became ready, from its own stderr."""
+    detail = tail_err(mode)
+    if detail:
+        return f"stderr: {detail}"
+    return (f"no output at all - still starting, or something holds out/shop.sqlite "
+            f"(child log: {ERRLOG.get(mode, 'n/a')})")
+
+
+def wait_up_or_death(proc: subprocess.Popen, base: str, tries: int = 60) -> bool:
+    """Like wait_up, but quits the moment the child is gone.
+
+    Patient about a slow start (AV scanning the interpreter: keep polling) and impatient about a
+    dead one (it exited: stop, and read its stderr). Waiting out the full budget in the second case
+    is how a real failure turns into a 90-second mystery."""
+    for _ in range(tries):
+        try:
+            if req(base, "/healthz")[0] == 200:
+                return True
+        except Exception:
+            time.sleep(0.15)
+        if proc.poll() is not None:
+            return False
+    return False
+
+
+def spawn_ready(mode: str, seats: int, attempts: int = 3):
+    """Spawn one shop.py and wait for it, retrying before giving up.
+
+    Returns (proc, base, None) on success, (None, "", reason) on failure. Never pretend a
+    measurement taken against a dead server says something about a class: callers that cannot
+    start their instance must report it as unverified, not as a result.
+    """
+    last = ""
+    for attempt in range(1, attempts + 1):
+        proc, base = spawn(mode, seats)
+        if wait_up_or_death(proc, base):
+            return proc, base, None
+        last = start_reason(mode)
+        try:
+            proc.terminate()
+            proc.wait(timeout=5)
+        except Exception:      # noqa: BLE001 - already failing; don't mask the reason
+            pass
+        if attempt < attempts:
+            time.sleep(1.0 * attempt)     # give AV/EDR time to finish scanning the interpreter
+    return None, "", f"{mode} instance never answered /healthz after {attempts} attempts; {last}"
+
+
 def _have_curl() -> bool:
     from shutil import which
     return which("curl") is not None
@@ -268,21 +323,15 @@ def main() -> int:
         sides = [("custom", a.base, None)]
     else:
         for m in (["vuln", "hard"] if a.only == "both" else [a.only]):
-            p, base = spawn(m, a.seats)
-            if not wait_up(base):
-                print(f"[webcheck] {m} instance never answered /healthz "
-                      f"(port busy, or it died at startup - child log: {ERRLOG.get(m, 'n/a')})", file=sys.stderr)
-                detail = tail_err(m)
-                if detail:
-                    print(f"[webcheck] {m} stderr: {detail}", file=sys.stderr)
-                else:
-                    print(f"[webcheck] {m} stderr: empty (still running, never became ready - "
-                          "another instance probably holds out/shop.sqlite)", file=sys.stderr)
-                p.terminate()
+            p, base, why = spawn_ready(m, a.seats)
+            if p is None:
+                print(f"[webcheck] {why}", file=sys.stderr)
+                print("[webcheck] nothing was measured - fix the startup problem, do not read "
+                      "anything into the class rows", file=sys.stderr)
                 return 1
             sides.append((m, base, p))
 
-    results, mismatches = [], 0
+    results, mismatches, unverified = [], 0, 0
     print(f"{'id':4s}{'class':52s}{'vuln':>10s}{'hard':>10s}   verdict")
     print("-" * 96)
     for cid, name, probe, judge in BATTERY:
@@ -310,21 +359,37 @@ def main() -> int:
 
     # E4 needs its own pair: exactly one seat, so any overspend is unambiguous
     if len(sides) == 2:
-        vp, vbase = spawn("vuln", 1)
-        hp, hbase = spawn("hard", 1)
-        wait_up(vbase)
-        wait_up(hbase)
-        v_win = run_race(vbase, 8)                      # spends the seat over GET (the CSRF half)
-        h_win = run_race(hbase, 8, use_post=True)       # same test, POST, atomic
-        ok = v_win > 1 and h_win == 1
-        mismatches += 0 if ok else 1
-        print(f"{'E4':4s}{'Coupon race — 1 seat, 8 parallel redemptions':41s}"
-              f"{f'{v_win} wins':>14s}{f'{h_win} wins':>16s}   {'ok' if ok else 'MISMATCH'}")
-        vp.terminate()
-        hp.terminate()
-        results.append({"id": "E4", "name": "coupon race (1 seat vs 8 parallel)",
-                        "vuln": {"fired": v_win > 1, "wins": v_win},
-                        "hard": {"fired": h_win > 1, "wins": h_win}})
+        vp, vbase, vwhy = spawn_ready("vuln", 1)
+        hp, hbase, hwhy = spawn_ready("hard", 1)
+        if vp is None or hp is None:
+            why = vwhy or hwhy
+            print(f"{'E4':4s}{'Coupon race — 1 seat, 8 parallel redemptions':41s}"
+                  f"{'-':>14s}{'-':>16s}   unverified")
+            print(f"[webcheck] E4 could not be measured ({why}) - that is a startup problem on "
+                  "this machine, not a verdict about the race. Re-run it alone: "
+                  "python3 tools/webcheck.py --only vuln", file=sys.stderr)
+            results.append({"id": "E4", "name": "coupon race (1 seat vs 8 parallel)",
+                            "verdict": "unverified", "why": why})
+            unverified += 1
+        else:
+            # 0 wins on either side is not a possible outcome of two live servers (the vulnerable
+            # pair overspends, the fixed one gives exactly 1), so a zero means they were not
+            # serving yet. Re-measure instead of reporting a verdict that is really a timing artefact.
+            for tries in range(3):
+                v_win = run_race(vbase, 8)                  # spends the seat over GET (the CSRF half)
+                h_win = run_race(hbase, 8, use_post=True)   # same test, POST, atomic
+                if v_win and h_win:
+                    break
+                time.sleep(1.0)
+            ok = v_win > 1 and h_win == 1
+            mismatches += 0 if ok else 1
+            print(f"{'E4':4s}{'Coupon race — 1 seat, 8 parallel redemptions':41s}"
+                  f"{f'{v_win} wins':>14s}{f'{h_win} wins':>16s}   {'ok' if ok else 'MISMATCH'}")
+            vp.terminate()
+            hp.terminate()
+            results.append({"id": "E4", "name": "coupon race (1 seat vs 8 parallel)",
+                            "vuln": {"fired": v_win > 1, "wins": v_win},
+                            "hard": {"fired": h_win > 1, "wins": h_win}})
 
     os.makedirs(os.path.dirname(a.json), exist_ok=True)
     json.dump({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "results": results}, open(a.json, "w", encoding="utf-8"), indent=2)
@@ -332,6 +397,11 @@ def main() -> int:
     print(f"[webcheck] {len(results)} classes checked -> {a.json}")
     if mismatches:
         print(f"[webcheck] {mismatches} MISMATCH(ES): a class did not behave as the docs claim")
+    elif unverified:
+        # never print the all-clear sentence while something went unmeasured: that sentence is a
+        # claim about every class, and an unverified row is not evidence of anything
+        print(f"[webcheck] {unverified} class(es) UNVERIFIED - not measured, so this run claims "
+              "nothing about them (usually AV/EDR slowing the spawned server, or a busy port)")
     else:
         print("[webcheck] every class fires when vulnerable and is blocked when hardened")
 
@@ -342,6 +412,8 @@ def main() -> int:
     else:
         for m, base, _ in sides:
             print(f"[webcheck] {m}: {base}  (left running)")
+    if unverified:
+        return 2                    # distinct from 1: nothing contradicted a class, something was not measured
     return 0 if mismatches == 0 else 1
 
 

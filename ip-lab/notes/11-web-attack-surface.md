@@ -280,6 +280,16 @@ python3 tools/webcheck.py                         # spawns both, A/B's every cla
 python3 tools/webcheck.py --keep                  # leaves them up so you can curl by hand
 ```
 
+Two exit codes matter when it fails. `MISMATCH` means a class did not behave the way the row
+above claims - that is a finding about the lab, and the whole table is worth pasting somewhere.
+`UNVERIFIED` (exit 2) means the harness could not start one of its own instances: it then refuses
+to print the all-clear line, because something it never measured cannot be reported as safe. The
+first version ignored the answer from its own readiness probe while spawning the single-seat pair
+for E4, which is exactly how a slow machine (defender scanning `python.exe`) got a bogus
+`E4 MISMATCH` and a hunt for a bug that was not there. Now: 30 s of patience for a slow start,
+3 s and a real error for a dead child, three attempts, and a re-measure when either side reports
+`0 wins` - zero is not a possible outcome of two live servers, so it means they were not serving.
+
 `tools/webcheck.py` real output (this is the verification, not a promise):
 
 ```

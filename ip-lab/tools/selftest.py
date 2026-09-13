@@ -465,11 +465,15 @@ try:
 
     r = _sp.run([sys.executable, os.path.join(ROOT, "tools", "webcheck.py")],
                 capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180, cwd=ROOT)
+    _bad = [ln.strip() for ln in r.stdout.splitlines()
+            if ln.strip().endswith(("MISMATCH", "unverified"))]
+    _why = " | ".join(x[-64:] for x in _bad[:3]) or (r.stdout.strip().splitlines() or [""])[-1]
     check("webcheck: every class fires when vulnerable and is blocked when hardened",
           r.returncode == 0 and "every class fires" in r.stdout,
-          ((r.stdout.splitlines() or [""])[-1]) + (r.stderr[-160:] if r.returncode else ""))
+          f"{_why}{r.stderr[-200:] if r.returncode else ''}")
     n_ok = sum(1 for ln in r.stdout.splitlines() if ln.strip().endswith(" ok"))
-    check("webcheck: 27 class rows all verdict=ok", n_ok >= 27 and "MISMATCH" not in r.stdout, f"{n_ok} ok rows")
+    check("webcheck: 27 class rows all verdict=ok", n_ok >= 27 and not _bad,
+          f"{n_ok} ok rows" + (f"; not ok: {_why}" if _bad else ""))
 except Exception as exc:  # noqa: BLE001
     failed.append(f"shop/webcheck: {type(exc).__name__}: {exc}")
     print("  FAIL", exc)
