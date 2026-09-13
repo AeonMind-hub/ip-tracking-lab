@@ -95,9 +95,16 @@ def bundle(incremental: bool, message: str) -> int:
     if incremental:
         _rc, prev = git("rev-list", "--skip=1", "-n", "1", "HEAD", check=False)
         base = prev.strip()
+        if not base:
+            print("[sync] only one commit exists; a delta is meaningless - writing a complete bundle")
     # an incremental bundle is only pullable by someone who already has `base`, which is why
     # `status` prints the recipient's exact command instead of assuming they know it
     spec = [f"{base}..main"] if base else ["HEAD", "main"]
+    if base:
+        print(f"[sync] incremental: this bundle only applies to a clone that already has "
+              f"{base[:8]}\n"
+              f"       if their pull says \"lacks these prerequisite commits\", re-run without "
+              "--incremental\n       (a complete bundle is a few hundred KiB - that is the safe default)")
     if os.path.exists(BUNDLE):
         os.unlink(BUNDLE)
     rc, out = git("bundle", "create", BUNDLE, *spec, check=False)

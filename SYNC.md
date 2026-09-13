@@ -24,6 +24,11 @@ that `proxy_lab/chain_demo.sh` wants. Nothing else to install.
 
 ## 2. Every time I ship something
 
+I publish a **complete** bundle by default (a few hundred KiB, applies to any clone at any state).
+`tools/sync.py bundle --incremental` exists for when you pull often and care about size: it contains
+only the newest commit, so your clone must already have the base — if `git pull` then answers
+`Repository lacks these prerequisite commits`, that is the signal to ask me for a complete one.
+
 ```powershell
 cd C:\lab\ip-tracking-lab
 git pull C:\lab\lab.bundle main
