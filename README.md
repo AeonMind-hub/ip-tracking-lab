@@ -37,6 +37,7 @@ registries.
 | the whole thing, top to bottom | `ip-lab/README.md` → the 21 exercises |
 | one command that proves it works | `cd ip-lab && python3 tools/selftest.py` (158 checks; `--offline` skips the 2 that need outbound TLS) |
 | **run it on Windows** | `ip-lab/WINDOWS.md` - `py` instead of `python3`, no pip, no admin, no Docker |
+| **get my fixes without re-downloading zips** | `SYNC.md` - clone once from `lab.bundle`, then `git pull` it forever |
 | the eleven lessons + cheat sheet | `ip-lab/notes/01…11*.md` (11 = web attack surface) |
 | the incident dataset to analyse | `ip-lab/data/target_access.log` (+ `data/key.json` for answers) |
 | break your own logging | `python3 target/app.py --port 8080 --mode naive` then `python3 tools/probe.py --naive 8080` |
