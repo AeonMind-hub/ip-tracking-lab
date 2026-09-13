@@ -102,7 +102,21 @@ check("fully trusted chain (client connected to a trusted proxy) => the peer bef
 # proxy_sim's real_ip_recursive=off semantics (right-most entry, no walk) is pinned here
 # by driving the module's own decision function instead of re-implementing it.
 import importlib
-psim = importlib.import_module("proxy_lab.proxy_sim") if os.path.exists("proxy_lab/proxy_sim.py") else None
+# This used to be os.path.exists("proxy_lab/proxy_sim.py") - cwd-relative - so running the
+# selftest from anywhere but the lab directory itself silently dropped six checks and still printed a green
+# result. Anchor on ROOT, and make the miss say so: a skipped check must be visible, or the
+# total becomes a number nobody can trust.
+_psim_path = os.path.join(ROOT, "proxy_lab", "proxy_sim.py")
+psim = None
+if os.path.exists(_psim_path):
+    try:
+        psim = importlib.import_module("proxy_lab.proxy_sim")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  FAIL proxy_lab.proxy_sim would not import: {type(exc).__name__}: {exc}")
+        failed.append("proxy_sim imports")
+else:
+    skipped.append("6 proxy_sim trust-walk checks (no proxy_lab/proxy_sim.py)")
+    print(f"  SKIP proxy_sim checks - expected {_psim_path}")
 if psim is not None:
     psim.CFG.update(mode="correct", trusted=["127.0.0.0/8"], real_ip_header="X-Forwarded-For",
                     real_ip_recursive="off", backend_ip="10.9.9.9")
