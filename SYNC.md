@@ -1,7 +1,7 @@
 # Getting my fixes: `git pull`, not re-downloaded zips
 
-The workspace is a git repository now (72 tracked files, one commit per batch of work). After every
-fix I re-create one file — **`lab.bundle`** — at the root, and you pull it. Your local notes and
+The workspace is a git repository now (one commit per batch of work; `git ls-files | wc -l` tells you
+how much is in it today). After every fix I re-create one file — **`lab.bundle`** — at the root, and you pull it. Your local notes and
 exercise answers survive, nothing gets deleted, and there is no archive to unzip over yourself.
 
 A bundle is just a git repo in a file. No account, no token, no network, works the same offline.
