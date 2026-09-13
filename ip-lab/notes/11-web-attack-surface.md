@@ -274,6 +274,7 @@ Two servers, same code, opposite posture:
 
 ```bash
 python3 apps/shop.py --port 8099 --seats 1      # vulnerable, 27 planted classes, one coupon seat
+python3 apps/shop.py --port 8099 --seats 1 --racers 8   # same, but the race demo cannot miss
 python3 apps/shop.py --port 8098 --mode hard    # same app, every class fixed
 python3 apps/shop.py --selftest                 # guard logic, no socket needed
 python3 tools/webcheck.py                         # spawns both, A/B's every class, exits 1 on any mismatch
@@ -289,6 +290,16 @@ for E4, which is exactly how a slow machine (defender scanning `python.exe`) got
 `E4 MISMATCH` and a hunt for a bug that was not there. Now: 30 s of patience for a slow start,
 3 s and a real error for a dead child, three attempts, and a re-measure when either side reports
 `0 wins` - zero is not a possible outcome of two live servers, so it means they were not serving.
+
+Why `--racers 8` exists: E4 is a check-then-act race, and a race only *shows* if the requests are
+inside the gap at the same time. Over HTTP that is scheduler luck - on one Windows box exactly one
+redemption was ever in flight, so the app printed "1 winner" for a single seat, the harness printed
+`E4 ... MISMATCH`, and a broken-looking row pointed at code that was faithfully broken. Now the
+vulnerable instance holds all eight arrivals at the check point and releases them together
+(`_race_window`, with a timeout so a lone request never hangs), and `shop.py --selftest` asserts
+the gate itself: hold-until-peer, and release-by-timeout. Both checks fail loudly if the gate is
+disabled - verified by disabling it: `held 0.05s`, `FAIL`, exit 1. The vulnerable *code* is
+unchanged, only the window it gets is no longer left to chance.
 
 `tools/webcheck.py` real output (this is the verification, not a promise):
 

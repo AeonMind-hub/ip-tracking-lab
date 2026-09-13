@@ -168,7 +168,7 @@ python3 tools/roe.py check --scope out/scope-acme.json --target http://127.0.0.1
 python3 tools/roe.py sign --scope out/scope-acme.json
 
 # Module 12: the whole web attack surface, self-hosted (notes/11)
-python3 apps/shop.py --port 8099 --seats 1          # vulnerable
+python3 apps/shop.py --port 8099 --seats 1          # vulnerable   # add --racers 8 for the E4 race
 python3 apps/shop.py --port 8098 --mode hard        # same app, fixed
 python3 tools/webcheck.py                             # A/B all 27 classes, exits 1 on any mismatch
 

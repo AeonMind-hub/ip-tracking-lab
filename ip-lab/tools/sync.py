@@ -76,10 +76,29 @@ def status() -> int:
     return 0
 
 
+def ensure_identity() -> None:
+    """Give the repo a local commit identity if it has none.
+
+    `git commit` refuses outright with "fatal: empty ident name" when user.name/user.email are
+    unset, and that is not hypothetical here: the workspace snapshot deliberately excludes
+    `.git/config` (so a credential can never ride along in it), which means a restored sandbox can
+    lose the identity that the first turn set. A publish tool should fix that itself instead of
+    printing git's error and doing nothing - these are sandbox-local names, not authorship claims,
+    so they are safe to write and worth never having to think about again.
+    """
+    _rc, name = git("config", "--get", "user.name", check=False)
+    _rc, mail = git("config", "--get", "user.email", check=False)
+    if not name.strip():
+        git("config", "--local", "user.name", "ip-lab", check=False)
+    if not mail.strip():
+        git("config", "--local", "user.email", "ip-lab@localhost", check=False)
+
+
 def bundle(incremental: bool, message: str) -> int:
     if not have_git():
         print("[sync] git is not installed here; a plain zip still works, see SYNC.md §1", file=sys.stderr)
         return 2
+    ensure_identity()          # without it, git refuses the commit and nothing gets published
     _rc, dirty = git("status", "--porcelain", check=False)
     if dirty.strip() and message:
         git("add", "-A", "--", ".")

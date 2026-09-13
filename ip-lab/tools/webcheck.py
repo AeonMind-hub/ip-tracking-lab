@@ -255,7 +255,7 @@ def wait_up_or_death(proc: subprocess.Popen, base: str, tries: int = 60) -> bool
     return False
 
 
-def spawn_ready(mode: str, seats: int, attempts: int = 3):
+def spawn_ready(mode: str, seats: int, attempts: int = 3, extra: tuple = ()):
     """Spawn one shop.py and wait for it, retrying before giving up.
 
     Returns (proc, base, None) on success, (None, "", reason) on failure. Never pretend a
@@ -264,7 +264,7 @@ def spawn_ready(mode: str, seats: int, attempts: int = 3):
     """
     last = ""
     for attempt in range(1, attempts + 1):
-        proc, base = spawn(mode, seats)
+        proc, base = spawn(mode, seats, extra)
         if wait_up_or_death(proc, base):
             return proc, base, None
         last = start_reason(mode)
@@ -286,7 +286,7 @@ def _have_curl() -> bool:
 ERRLOG = {}
 
 
-def spawn(mode: str, seats: int = 40) -> tuple[subprocess.Popen, str]:
+def spawn(mode: str, seats: int = 40, extra: tuple = ()) -> tuple[subprocess.Popen, str]:
     """Start one shop.py. Its stderr goes to a file, not a pipe: a startup traceback is the one
     thing a harness must not swallow, and `wait_up` failing without it is just "it didn't come
     up" - which is exactly the message that sent me hunting for a bug in a working lab."""
@@ -295,7 +295,8 @@ def spawn(mode: str, seats: int = 40) -> tuple[subprocess.Popen, str]:
     os.makedirs(os.path.dirname(err), exist_ok=True)
     fh = open(err, "w", encoding="utf-8", errors="replace")
     ERRLOG[mode] = err
-    p = subprocess.Popen([sys.executable, SHOP, "--port", str(port), "--mode", mode, "--seats", str(seats)],
+    p = subprocess.Popen([sys.executable, SHOP, "--port", str(port), "--mode", mode,
+                          "--seats", str(seats), *[str(x) for x in extra]],
                          stdout=subprocess.DEVNULL, stderr=fh)
     p._errfile = fh            # closed when the child is reaped below
     return p, f"http://127.0.0.1:{port}"
@@ -359,7 +360,12 @@ def main() -> int:
 
     # E4 needs its own pair: exactly one seat, so any overspend is unambiguous
     if len(sides) == 2:
-        vp, vbase, vwhy = spawn_ready("vuln", 1)
+        # --racers 8 makes the vulnerable instance hold all eight redemptions inside the
+        # check-then-act gap together. Without it the oversell depends on the scheduler cooperating,
+        # and on the Windows box this was tested on it did not: one request at a time in flight,
+        # "1 winner", and the row reported a MISMATCH for a class that was behaving exactly as
+        # written. Measure the bug; do not hope to catch it.
+        vp, vbase, vwhy = spawn_ready("vuln", 1, extra=("--racers", "8"))
         hp, hbase, hwhy = spawn_ready("hard", 1)
         if vp is None or hp is None:
             why = vwhy or hwhy
@@ -383,6 +389,10 @@ def main() -> int:
                 time.sleep(1.0)
             ok = v_win > 1 and h_win == 1
             mismatches += 0 if ok else 1
+            if v_win == 1:
+                print("[webcheck] E4: the vulnerable instance handed the seat to exactly one caller, "
+                      "which should be impossible with --racers 8 - check that apps/shop.py is current",
+                      file=sys.stderr)
             print(f"{'E4':4s}{'Coupon race — 1 seat, 8 parallel redemptions':41s}"
                   f"{f'{v_win} wins':>14s}{f'{h_win} wins':>16s}   {'ok' if ok else 'MISMATCH'}")
             vp.terminate()

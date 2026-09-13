@@ -69,7 +69,9 @@ final artefacts are markdown/JSON you could hand to a lawyer or a reviewer.
   the "safe" edge config *introduces* `trusted_too_wide`), `--patch` emits a hardened
   fragment, `--selftest` runs it against both shipped configs.
 * **`webcheck.py`** — spawns `apps/shop.py` twice (`--mode vuln --seats 40`, then
-  `--mode hard`), runs 23 probes against *both*, and prints `FIRES/quiet` per side. A row is
+  `--mode hard`), runs 23 probes against *both*, and prints `FIRES/quiet` per side. The coupon race
+  gets its own pair of single-seat instances, the vulnerable one started with `--racers 8` so the
+  overlap is arranged rather than waited for. A row is
   `ok` only when the payload works on the vulnerable instance **and** is inert on the hardened
   one, so a fix that silently stopped working turns into exit 1 rather than a stale note.
   The coupon race gets its own 1-seat pair (8 parallel redemptions: 8 winners vs 1).

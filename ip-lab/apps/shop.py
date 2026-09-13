@@ -2,6 +2,7 @@
 """shop.py — the web attack surface, all of it, in one deliberately broken app.
 
     python3 apps/shop.py --port 8099 --seats 1        # vulnerable
+    python3 apps/shop.py --port 8099 --seats 1 --racers 8   # ...and the race, every time
     python3 apps/shop.py --port 8098 --mode hard      # same app, fixed, for A/B
 
 Every `# BUG:` line is a plant you can hit with curl in under a minute, against
@@ -54,7 +55,10 @@ UPLOAD_DIR = os.path.join(ROOT, "out", "uploads")
 JWT_SECRET = "correct-horse-battery"           # leaked on purpose: /debug
 
 CFG = {"mode": "vuln", "show_sql": True, "atomic": False, "leak_secret": True, "bind_session": False}
+CFG["racers"] = 1                              # how many redemptions the race demo overlaps
 LOCK = threading.Lock()                        # present; the bugs just do not all use it
+_BARRIER = None                            # the race window's gate; see _race_window
+_BARRIER_LOCK = threading.Lock()
 NOTES: list[dict] = []                         # the stored-XSS guestbook
 COUPON = {"code": "LAUNCH25", "remaining": 1, "used_by": []}
 DRAINED: list[str] = []                        # the "attacker listener", simulated in-process
@@ -272,6 +276,36 @@ def fingerprint(ua: str, peer: str) -> str:
 
 
 # ---------------------------------------------------------------- the handlers
+def _race_window(expect: int, seconds: float = 1.0) -> None:
+    """Hold a vulnerable redemption at its check point until `expect` of them are inside it.
+
+    The bug is a genuine read-modify-write: eligibility is decided out here, then spent on that
+    stale belief in there. Whether it *shows up* as an oversell depends on the requests overlapping
+    inside that gap, and 8 client threads do not reliably do that - measured on a real Windows box,
+    exactly one request was ever in flight, so the app reported "1 winner" for 1 seat and the class
+    looked FIXED while the code was still broken. A fixed `sleep(0.05)` leaves the lesson to
+    scheduler luck; a barrier makes it happen every time, and `seconds` means a lone caller never
+    hangs waiting for peers that are not coming.
+
+    `--racers 8` is what tools/webcheck.py passes because it knows it is about to fire 8. The
+    default of 1 leaves a hand-run instance behaving like an ordinary web app.
+    """
+    global _BARRIER
+    if expect <= 1:
+        time.sleep(0.05)                            # manual use: the old, luck-based window
+        return
+    with _BARRIER_LOCK:
+        if _BARRIER is None or getattr(_BARRIER, "parties", 0) != expect:
+            _BARRIER = threading.Barrier(expect)
+        bar = _BARRIER
+    try:
+        bar.wait(timeout=seconds)                   # everyone goes on together, or nobody does
+    except threading.BrokenBarrierError:
+        with _BARRIER_LOCK:
+            if _BARRIER is bar:
+                _BARRIER = None                     # the next round gets a clean gate
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     server_version = "nginx/1.24.0 (Ubuntu)"   # honesty: no. That header is a lie.
@@ -675,7 +709,7 @@ code,pre{background:#f4f4f4;padding:.15rem .3rem;border-radius:4px;font-size:13p
         # BUG: E4 the decision was made outside, the write happens later on the stale belief.
         # Any read-modify-write looks like this: inventory, wallet balance, coupon, referral
         # credit, rate-limit counter.
-        time.sleep(0.05)
+        _race_window(CFG["racers"])   # force the window, so the oversell is not a coin-flip
         with LOCK:
             COUPON["remaining"] -= 1
             COUPON["used_by"].append(who)
@@ -692,9 +726,13 @@ def main() -> int:
     ap.add_argument("--atomic", action="store_true", help="make the coupon update atomic (the fix)")
     ap.add_argument("--no-leak-secret", action="store_true")
     ap.add_argument("--seats", type=int, default=1, help="coupon redemptions allowed (raise it to re-run the race)")
+    ap.add_argument("--racers", type=int, default=1,
+                    help="N: make N concurrent redemptions meet inside the vulnerable window "
+                         "(tools/webcheck.py passes 8; leave at 1 when running by hand)")
     ap.add_argument("--selftest", action="store_true", help="no socket: assert every guard works")
     a = ap.parse_args()
     COUPON["remaining"] = a.seats
+    CFG["racers"] = max(1, a.racers)
     CFG.update(mode=a.mode, show_sql=(not a.no_show_sql) and a.mode != "hard",
                atomic=a.atomic or a.mode == "hard", leak_secret=not a.no_leak_secret,
                bind_session=(a.mode == "hard"))
@@ -785,6 +823,59 @@ def selftest() -> int:
     check("with binding, the real device still works", bind_profile("S1", "RealBrowser/1", "10.0.0.5"))
     check("fingerprint is stable and short", len(fingerprint("a", "b")) == 16
           and fingerprint("a", "b") == fingerprint("a", "b"))
+    # The race demo's only new mechanism is the forced window, so pin the mechanism on the real
+    # code path: Handler._coupon with a stubbed transport, not a re-typed copy of the logic.
+    class _Sock:
+        def __init__(self):
+            self.status, self.body = 0, ""
+
+        def send(self, status, body, ctype="text/plain", headers=None):
+            self.status, self.body = status, body
+
+        def me(self):
+            return {"sub": "buyer@example.test"}
+
+    def _through_real_handler(atomic: bool, n: int = 8) -> int:
+        COUPON["remaining"], COUPON["used_by"] = 1, []
+        CFG.update(atomic=atomic, racers=n)
+        sks = [_Sock() for _ in range(n)]
+        th = [threading.Thread(target=Handler._coupon, args=(sk, "LAUNCH25")) for sk in sks]
+        [x.start() for x in th]
+        [x.join(timeout=20) for x in th]
+        return sum(1 for sk in sks if sk.status == 200)
+
+    loose = _through_real_handler(False)
+    tight = _through_real_handler(True)
+    check("1 seat, 8 concurrent redemptions -> 8 winners while the check is outside the lock",
+          loose == 8)
+    check("the same 8 against the atomic fix -> exactly 1 winner", tight == 1)
+    # and the gate on its own, because the two rows above pass even without it: 8 plain threads in
+    # one process overlap inside any sleep, whereas 8 HTTP requests need help to do it. These two
+    # are what make the demo OS-independent, so they are what has to be tested.
+    _held = []
+
+    def _waiter():
+        _t0 = time.time()
+        _race_window(2, 3.0)
+        _held.append(time.time() - _t0)
+
+    _th = threading.Thread(target=_waiter)
+    _th.start()
+    time.sleep(0.25)                       # the peer deliberately arrives late
+    _race_window(2, 3.0)
+    _th.join(timeout=10)
+    print(f"       (held {(_held[0] if _held else -1):.2f}s for the late peer)")
+    check("the gate holds a caller until its peer shows up (this is the OS-independence)",
+          bool(_held) and _held[0] >= 0.2)
+    _t1 = time.time()
+    _race_window(5, 0.3)                   # no peers at all: must be released by the timeout
+    _alone = time.time() - _t1
+    print(f"       lone caller released after {_alone:.2f}s (timeout was 0.3s)")
+    check("a lone caller is released by the timeout instead of hanging on absent peers",
+          0.25 <= _alone < 2.0)
+    CFG.update(atomic=False, racers=1)
+    COUPON["remaining"], COUPON["used_by"] = 1, []
+
     print("RESULT:", "all shop guards verified" if ok else "SHOP GUARD FAILURES")
     return 0 if ok else 1
 

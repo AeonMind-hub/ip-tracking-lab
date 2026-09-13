@@ -24,7 +24,7 @@ reduced to commands, offsets and tables.
 | flows only / one rule / JSON | `--flows-only` / `--rule ssh_bruteforce` / `--json out/a.json` |
 | rebuild a request | `python3 tools/triage.py --re 10.0.0.20 --dport 8443` |
 | Sigma-style export | `python3 tools/triage.py --sigma` |
-| **web surface: run the playground** | `python3 apps/shop.py --port 8099 --seats 1` (vulnerable) · `--port 8098 --mode hard` (fixed) |
+| **web surface: run the playground** | `python3 apps/shop.py --port 8099 --seats 1` (vulnerable) · `--port 8098 --mode hard` (fixed) · add `--racers 8` so the coupon race always lands |
 | web surface: prove every class | `python3 tools/webcheck.py` → 23 rows, `FIRES/quiet`, exit 1 on mismatch |
 | web surface: guard logic, no socket | `python3 apps/shop.py --selftest` |
 | **what a site learns about your device** | `python3 tools/eyeball.py serve --port 8097`, then `analyze` / `diff` |
