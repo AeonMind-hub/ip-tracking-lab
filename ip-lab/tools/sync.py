@@ -104,7 +104,11 @@ def bundle(incremental: bool, message: str) -> int:
             print("[sync] only one commit exists; a delta is meaningless - writing a complete bundle")
     # an incremental bundle is only pullable by someone who already has `base`, which is why
     # `status` prints the recipient's exact command instead of assuming they know it
-    spec = [f"{base}..main"] if base else ["HEAD", "main"]
+    # tags travel with the bundle: a recipient should be able to `git describe` what they cloned,
+    # and "HEAD main" alone silently ships a repo that cannot name its own release
+    _rc, tags = git("tag", "--list", check=False)
+    want_tags = [f"refs/tags/{t}" for t in tags.split() if t.strip()]
+    spec = ([f"{base}..main"] if base else ["HEAD", "main"]) + ([] if base else want_tags)
     if base:
         print(f"[sync] incremental: this bundle only applies to a clone that already has "
               f"{base[:8]}\n"
