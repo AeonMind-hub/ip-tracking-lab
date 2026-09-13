@@ -55,6 +55,11 @@ def status() -> int:
     if not have_git():
         print("[sync] no git on PATH - nothing to report")
         return 2
+    _rc, _gitdir = git("rev-parse", "--git-dir", check=False)
+    if _rc:
+        print("[sync] this tree is not a git clone (a plain copy from a zip?) - see SYNC.md §1 "
+              "to turn it into one. Nothing to publish from here.")
+        return 2
     _rc, tracked = git("ls-files", check=False)
     _rc, dirty = git("status", "--porcelain", check=False)
     _rc, head = git("log", "--oneline", "-1", check=False)

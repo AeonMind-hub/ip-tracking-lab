@@ -580,6 +580,16 @@ try:
     check("every text-mode open() in the lab states encoding=utf-8", not unencoded, " | ".join(unencoded[:3]))
     check("every CLI entry point installs the console shim", clis == guarded and clis >= 20,
           f"{guarded}/{clis} entry points guarded")
+
+    import shutil as _shutil
+    _r = _sp.run([sys.executable, os.path.join(ROOT, "tools", "sync.py"), "status"],
+                 capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=ROOT)
+    if _shutil.which("git") and _r.returncode == 0:
+        check("sync.py status reports repo state (the bundle publishing path)",
+              "tracked" in _r.stdout and "bundle" in _r.stdout, _r.stdout[:90])
+    else:
+        skipped.append("sync.py status (no git here, or this tree is a plain copy, not a clone)")
+        print("  SKIP sync.py status - needs a git clone to be meaningful")
 except Exception as exc:  # noqa: BLE001
     failed.append(f"tracking/device tools: {type(exc).__name__}: {exc}")
     print("  FAIL", exc)

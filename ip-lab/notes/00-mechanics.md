@@ -4,7 +4,7 @@ Read this if you want the machine, not the syllabus. Everything is Python 3 stdl
 every number quoted below is from a run in this workspace.
 
 ```bash
-python3 tools/selftest.py          # 158 checks: the lab tests its own claims
+python3 tools/selftest.py          # 159 checks: the lab tests its own claims
 python3 tools/selftest.py --offline  # 152 + 2 skipped, when outbound TLS is filtered (Windows, corporate LAN)
 python3 tools/run_all.py      # batch 1 end to end (6 stages)
 bash proxy_lab/chain_demo.sh  # module 6 end to end
@@ -138,7 +138,7 @@ audits the two nginx configs.
 ## 0.5 The design rules this code follows (steal these for your own tools)
 
 1. **Every claim is a test.** If the README says a config produces a finding, there's an
-   assertion. Docs rot; `RESULT: 158 checks passed` doesn't. A check that cannot run because the
+   assertion. Docs rot; `RESULT: 159 checks passed` doesn't. A check that cannot run because the
    *network* is filtered must SKIP with a reason, not FAIL - `--offline` exists so that choice is
    explicit rather than accidental.
 2. **Store the reason, not just the value.** `log_reason`, `X-Log-Reason`, every rule's

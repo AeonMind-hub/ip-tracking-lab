@@ -14,7 +14,7 @@ handled in code:
 Those three are pinned by checks: `tools/selftest.py` §12b parses a Windows-format `arp -a` table,
 round-trips a UTF-16 file through `read_arp_file`, asserts `sys.stdout.encoding == utf-8` after
 `ready()`, lints every `.py` in the repo for an `open()` without an encoding, and asserts every
-CLI installs the shim. 158 checks pass. What I could *not* do is run this on real Windows from
+CLI installs the shim. 159 checks pass. What I could *not* do is run this on real Windows from
 here - the simulation used `LC_ALL=C PYTHONUTF8=0 PYTHONIOENCODING=ascii`, which reproduces the
 crash mode (an ASCII console, an ASCII default file encoding) and the whole suite passes under it,
 including `tools/run_all.py` and `tools/webcheck.py`. Treat "works on Windows" as strong inference,
@@ -43,9 +43,11 @@ Optional, only for the two `.sh` demos (§8): **Git for Windows** <https://git-s
 Optional, only for the nginx/Vagrant variants you were told are unverified here: WSL2 + Vagrant +
 VirtualBox.
 
-## 2. Unzip
+## 2. Get the code
 
-Extract the archive to a short path with no spaces, e.g. `C:\lab\`:
+If you already have my `lab.bundle`, skip this section and use `SYNC.md` §1 - that is
+the path you want, because after that every update is a `git pull`. Otherwise extract the
+archive to a short path with no spaces, e.g. `C:\lab\`:
 
 ```powershell
 cd $env:USERPROFILE\Downloads
@@ -68,19 +70,19 @@ py tools\selftest.py
 Expect, at the end:
 
 ```
-RESULT: 158 checks passed
+RESULT: 159 checks passed
 ```
 
-Two of those 158 need outbound TLS (a certificate probe against `1.1.1.1:443`). On a machine behind a
+Two of those 159 need outbound TLS (a certificate probe against `1.1.1.1:443`). On a machine behind a
 corporate proxy, an EDR product, or an ISP that filters 443 - which is exactly what happened on the
 first real-Windows run of this lab - you will instead see
 
 ```
-RESULT: 155 checks passed, 2 skipped: ['TLS SNI cert parse (no usable path to 1.1.1.1:443)', ...]
+RESULT: 156 checks passed, 2 skipped: ['TLS SNI cert parse (no usable path to 1.1.1.1:443)', ...]
 ```
 
 and the exit code is still 0, because a filtered network is not a lab defect. Make that explicit with
-`py tools\selftest.py --offline` (152 passed, 2 skipped, no probing at all), or point the probe
+`py tools\selftest.py --offline` (153 passed, 2 skipped, no probing at all), or point the probe
 somewhere your network does allow: `LAB_TLS_HOST=github.com py tools\selftest.py`
 (`$env:LAB_TLS_HOST="github.com"` in PowerShell; `LAB_TLS_PORT`, `LAB_TLS_SNI` and `LAB_TLS_TIMEOUT`
 also exist). A `FAIL` on any other line is a real problem - paste it to me.

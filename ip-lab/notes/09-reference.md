@@ -7,7 +7,7 @@ reduced to commands, offsets and tables.
 
 | goal | command |
 |---|---|
-| prove the lab is intact | `python3 tools/selftest.py` (158 checks; `--offline` skips the 2 TLS probes) |
+| prove the lab is intact | `python3 tools/selftest.py` (159 checks; `--offline` skips the 2 TLS probes) |
 | regenerate everything | `python3 tools/run_all.py` ; `python3 tools/gen_pcap.py` |
 | log → who/what/when | `python3 tools/dossier.py data/target_access.log --xff --only-sus` |
 | …timeline of one address | `--timeline 60 --ip 177.154.220.44` |
