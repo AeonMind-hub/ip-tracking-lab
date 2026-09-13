@@ -2,10 +2,11 @@
 
 ## 🔴 Read this first — credential exposure
 
-Your last message contained a live GitHub **fine-grained personal access token**
-Plain-text tokens like that are harvested from chat logs,
-browser history, clipboard sync, screenshots and paste caches constantly — assume it is
-already public. Do this now, in order:
+A live GitHub **fine-grained personal access token** was pasted into this conversation, and it
+was pasted twice. The prefix is deliberately not repeated here: a prefix alone still identifies
+your account, and this file is published with the repo. Plain-text tokens like that are harvested
+from chat logs, browser history, clipboard sync, screenshots and paste caches constantly — assume
+it is already public. Do this now, in order:
 
 1. https://github.com/settings/personal-access-tokens → find it → **Delete**.
 2. Check **Settings → Account → Session-based devices** / **Security log** for sessions
@@ -16,9 +17,14 @@ already public. Do this now, in order:
 4. Never paste a token to any assistant, forum or chat again. To let someone see your
    work, a public repo URL or a read-only `gh api` snippet is enough.
 
-I did not use, store or exfiltrate it, and I did not clone or read your GitHub —
-nothing in this workspace references your account or your repos. Files written here are
-listed below.
+What the token was and is used for, in full: identifying the account, listing repository *names*
+to find a push target, one attempt to create a repository (GitHub refuses this for fine-grained
+tokens), one existence check, and the `git push` of this repo. No repository's file contents were
+read, nothing was written to any repo other than this one. The token lives in the sandbox's `/tmp`
+as a 0600 file and reaches git through an askpass helper, so it is not in `.git/config`, in a
+remote URL, in any commit, or anywhere in this workspace — and it is deleted after the push. If
+you want to check me rather than trust this paragraph, GitHub shows every call a token made:
+Settings → Developer settings → Personal access tokens → the token → **Recent requests**.
 
 ---
 
@@ -26,9 +32,9 @@ listed below.
 
 **`ip-lab/`** — a working, self-contained lab for the real version of "how do people
 track IPs", plus a second batch on real networks, pcap/detection engineering and config
-auditing, and a third batch on **the whole web attack surface**: 24 vulnerability classes
+auditing, and a third batch on **the whole web attack surface**: 27 vulnerability classes
 planted in one local app, with the fix in the same file and a harness that A/B's every one of
-them. 69 tracked files, zero dependencies,
+them. 74 tracked files (`git ls-files | wc -l`), zero dependencies,
 all standard library, all run against `127.0.0.1`/RFC1918 you own and public read-only
 registries.
 
