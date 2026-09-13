@@ -14,7 +14,7 @@ handled in code:
 Those three are pinned by checks: `tools/selftest.py` §12b parses a Windows-format `arp -a` table,
 round-trips a UTF-16 file through `read_arp_file`, asserts `sys.stdout.encoding == utf-8` after
 `ready()`, lints every `.py` in the repo for an `open()` without an encoding, and asserts every
-CLI installs the shim. 165 checks pass, and they add up to 165 slots in every mode - network
+CLI installs the shim. 166 checks pass, and they add up to 165 slots in every mode - network
 available (165 passed), port 443 filtered (162 passed, 3 skipped), `--offline` (159 passed,
 6 skipped) - because recording a skip and announcing it are now one operation (`skip()`), so a
 filtered network cannot quietly shrink the suite.
@@ -83,7 +83,7 @@ py tools\selftest.py
 Expect, at the end:
 
 ```
-RESULT: 165 checks passed
+RESULT: 166 checks passed
 ```
 
 Two of those 163 need outbound TLS (a certificate probe against `1.1.1.1:443`). On a machine behind a
@@ -91,7 +91,7 @@ corporate proxy, an EDR product, or an ISP that filters 443 - which is exactly w
 first real-Windows run of this lab - you will instead see
 
 ```
-RESULT: 162 checks passed, 3 skipped: ['TLS SNI cert parse (no usable path to 1.1.1.1:443)', ...]
+RESULT: 163 checks passed, 3 skipped: ['TLS SNI cert parse (no usable path to 1.1.1.1:443)', ...]
 ```
 
 and the exit code is still 0, because a filtered network is not a lab defect. Make that explicit with
@@ -237,7 +237,7 @@ they are plain text otherwise, so `Get-Content notes\01-pipeline.md` is fine for
 - **`Address already in use`** - `netstat -ano | Select-String ":8097"` then `taskkill /PID <pid> /F`.
 - **`git clone` says `destination path ... already exists`** - that means you are still running the
   unzipped copy, so whatever you just measured is the *old* code (the selftest total is the tell:
-  156 slots there, 165 here). Clone beside it instead of over it, and use the new folder from now on:
+  156 slots there, 166 here). Clone beside it instead of over it, and use the new folder from now on:
   `git clone --branch main C:\lab\lab.bundle C:\lab\lab-git`. Nothing in the old folder is worth
   keeping unless you wrote notes in it - `git -C C:\lab\ip-tracking-lab status` will say "not a
   repository", which is how you confirm it holds no history you would lose.
@@ -246,7 +246,7 @@ they are plain text otherwise, so `Get-Content notes\01-pipeline.md` is fine for
   Windows user and not by me: the registry-lookup cache named its file after the address, and `:`
   is legal in a Linux filename and illegal on Windows, so an IPv6 lookup died at the *write* while
   every v4 check passed. `lab/win.py:fs_safe()` now sanitises any name the lab puts in a path, and
-  four selftest checks pin it (165 total). If you see it in an older tree, that tree is behind:
+  four selftest checks pin it (166 total). If you see it in an older tree, that tree is behind:
   pull.
 - **`webcheck: 1 MISMATCH` on `E4`, or a row saying `unverified`** - the race harness needs two
   extra single-seat servers, and on Windows Defender can hold each `python.exe` for seconds while it

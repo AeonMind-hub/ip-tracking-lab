@@ -132,6 +132,34 @@ def bundle(incremental: bool, message: str) -> int:
     return 0
 
 
+def push_to_origin() -> int:
+    """Push `main` and the tags to the `origin` remote, then prove the remote moved.
+
+    Kept out of `bundle`'s happy path on purpose: writing the file and shipping it are different
+    decisions, and a failed push must never look like a publish that succeeded. The remote URL
+    holds no credential - git gets one from whatever the machine already has (GIT_ASKPASS here,
+    GCM's browser sign-in on Windows), so nothing sensitive is written into `.git/config`.
+    """
+    _rc, url = git("config", "--get", "remote.origin.url", check=False)
+    if not url.strip():
+        print("[sync] no origin remote, so nothing was pushed. lab.bundle is current either way; "
+              "SYNC.md §4 adds a remote in two commands", file=sys.stderr)
+        return 1
+    rc, out = git("push", "origin", "main", "--follow-tags", check=False)
+    for line in out.splitlines()[-3:]:
+        print(f"[sync] push: {line}")
+    if rc:
+        print(f"[sync] PUSH FAILED (exit {rc}) - the bundle on disk is still valid, so nothing is "
+              "lost; fix the credential/network and re-run with --push", file=sys.stderr)
+        return rc
+    _rc2, head = git("rev-parse", "HEAD", check=False)
+    _rc2, remote = git("ls-remote", "origin", "refs/heads/main", check=False)
+    got = remote.split()[0] if remote.strip() else ""
+    agrees = bool(got) and got == head.strip()
+    print(f"[sync] origin/main at {got[:12] or '?'} -> {'matches HEAD' if agrees else 'DOES NOT MATCH HEAD'}")
+    return 0 if agrees else 1
+
+
 def check_only() -> int:
     if not os.path.exists(BUNDLE):
         print("[sync] no bundle yet: run  python3 tools/sync.py bundle", file=sys.stderr)
@@ -151,12 +179,18 @@ def main() -> int:
     b.add_argument("--m", default="", help="commit message; commits every tracked change first")
     b.add_argument("--incremental", action="store_true",
                    help="only the newest commit's delta (recipient must already have the previous one)")
+    b.add_argument("--push", action="store_true",
+                   help="after bundling, also push main + tags to the origin remote and confirm it moved")
     sub.add_parser("check", help="verify the existing bundle and print the pull command")
     a = ap.parse_args()
     if a.cmd == "status":
         return status()
     if a.cmd == "bundle":
-        return bundle(a.incremental, a.m)
+        rc = bundle(a.incremental, a.m)
+        if a.push:
+            prc = push_to_origin()
+            return rc if rc else prc       # a broken bundle outranks a broken push
+        return rc
     return check_only()
 
 

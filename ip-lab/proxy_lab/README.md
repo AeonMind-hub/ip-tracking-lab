@@ -128,7 +128,7 @@ attribution behaviours your own setup has. That's the deliverable: a verdict + a
 * **Executed in this workspace (Python only, loopback):** `chain_demo.sh` end to end,
   `proxy_sim.py` in all four modes (`naive`, `correct`+recursive on/off, `--strip-inbound-xff`),
   the per-hop log table, `tools/dossier.py` on the resulting logs, and `tools/audit.py`
-  on both nginx configs (`tools/selftest.py`: 165 checks, including the forwarded-header trust walk on both nginx configs).
+  on both nginx configs (`tools/selftest.py`: 166 checks, including the forwarded-header trust walk on both nginx configs).
 * **Written, not executed here** — no Docker/Vagrant/nginx/raw sockets in this sandbox:
   `docker-compose.yml` (+ its entrypoint), `Vagrantfile` and `provision/*.sh`,
   `nginx/{edge_naive,edge_safe}.conf`, `relay/relay.conf`. Those are checked statically

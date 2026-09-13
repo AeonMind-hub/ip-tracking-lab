@@ -673,6 +673,10 @@ try:
           f"{guarded}/{clis} entry points guarded")
     _own = open(os.path.join(ROOT, "tools", "selftest.py"), encoding="utf-8").read()
     _printers = [ln.strip() for ln in _own.splitlines() if _re.match(r'''print\(f?"  SKIP''', ln.strip())]
+    _h = _sp.run([sys.executable, os.path.join(ROOT, "tools", "sync.py"), "bundle", "--help"],
+                 capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=ROOT)
+    check("sync.py exposes --push (publish to origin and confirm the remote moved)",
+          "--push" in _h.stdout and _h.returncode == 0, _h.stdout.strip()[-90:])
     check("a SKIP cannot be printed without being recorded (skip() is the only producer)",
           len(_printers) == 1, f"{len(_printers)} print sites: " + " | ".join(x[:40] for x in _printers[:3]))
 

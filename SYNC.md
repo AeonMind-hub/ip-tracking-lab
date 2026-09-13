@@ -12,7 +12,7 @@ A bundle is just a git repo in a file. No account, no token, no network, works t
 cd C:\lab
 git clone --branch main C:\lab\lab.bundle ip-tracking-lab
 cd ip-tracking-lab\ip-lab
-py tools\selftest.py            # RESULT: 165 checks passed
+py tools\selftest.py            # RESULT: 166 checks passed
 ```
 
 Verified exactly like this from a clean directory (clone the bundle, run the gate). If you would
@@ -38,6 +38,17 @@ git log --oneline -5                      # what just arrived
 
 Expected: a `Fast-forward` line listing the changed files, then the selftest. `git diff HEAD@{1}
 --stat` shows what moved since your previous pull if you want the details before you read them.
+
+### 2b. If you have given me a credential, one command publishes both ways
+
+```bash
+cd /home/user && python3 ip-lab/tools/sync.py bundle --m "fix: ..." --push
+```
+
+`--push` runs after the bundle is written and verified: it pushes `main` and the tags to `origin`,
+then reads `refs/heads/main` back off the remote and prints `origin/main at <sha> -> matches HEAD`.
+If the push fails you get the bundle anyway and exit 1 - the file on disk is never invalidated by a
+network problem, and a failed push is never reported as a publish.
 
 ## 3. If you have edited files and git refuses to pull
 
