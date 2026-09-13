@@ -34,14 +34,14 @@ Settings → Developer settings → Personal access tokens → the token → **R
 track IPs", plus a second batch on real networks, pcap/detection engineering and config
 auditing, and a third batch on **the whole web attack surface**: 27 vulnerability classes
 planted in one local app, with the fix in the same file and a harness that A/B's every one of
-them. 74 tracked files (`git ls-files | wc -l`), zero dependencies,
+them. 75 tracked files (`git ls-files | wc -l`), zero dependencies,
 all standard library, all run against `127.0.0.1`/RFC1918 you own and public read-only
 registries.
 
 | you want | start here |
 |---|---|
 | the whole thing, top to bottom | `ip-lab/README.md` → the 21 exercises |
-| one command that proves it works | `cd ip-lab && python3 tools/selftest.py` (159 checks; `--offline` skips the 2 that need outbound TLS) |
+| one command that proves it works | `cd ip-lab && python3 tools/selftest.py` (165 checks; `--offline` skips the 2 that need outbound TLS) |
 | **run it on Windows** | `ip-lab/WINDOWS.md` - `py` instead of `python3`, no pip, no admin, no Docker |
 | **get my fixes without re-downloading zips** | `SYNC.md` - clone once from `lab.bundle`, then `git pull` it forever |
 | the eleven lessons + cheat sheet | `ip-lab/notes/01…11*.md` (11 = web attack surface) |
@@ -102,7 +102,7 @@ boundary document you asked for.
 
 ### What "verified" means here
 
-Executed in this sandbox: `tools/selftest.py` → **159 checks passed** (parsers, the
+Executed in this sandbox: `tools/selftest.py` → **165 checks passed** (parsers, the
 right-to-left XFF trust walk in eight cases, duplicate-header handling, pcap round-trip,
 every detection rule, both nginx configs, the sim's four decision modes);
 `tools/run_all.py` → all 7 stages `exit 0`; `python3 tools/gen_pcap.py && python3

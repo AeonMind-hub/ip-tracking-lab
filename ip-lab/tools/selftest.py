@@ -40,6 +40,19 @@ except ImportError:
     pass
 
 
+def skip(why, show=""):
+    """Record a check that did not run, and say so.
+
+    Print and record are deliberately one operation: a SKIP used to be possible to *announce*
+    without *recording*, so on a machine with port 443 filtered the harness reported
+    "160 passed, 2 skipped" while the network-free run reported 163 - a check had vanished with no
+    line anywhere about it. Totals must add up in every mode, or a filtered network looks like a
+    smaller lab.
+    """
+    skipped.append(why)
+    print(f"  SKIP {show or why}")
+
+
 def check(name, cond, detail=""):
     global ok
     if cond:
@@ -115,8 +128,8 @@ if os.path.exists(_psim_path):
         print(f"  FAIL proxy_lab.proxy_sim would not import: {type(exc).__name__}: {exc}")
         failed.append("proxy_sim imports")
 else:
-    skipped.append("6 proxy_sim trust-walk checks (no proxy_lab/proxy_sim.py)")
-    print(f"  SKIP proxy_sim checks - expected {_psim_path}")
+    skip("6 proxy_sim trust-walk checks (no proxy_lab/proxy_sim.py)",
+         f"proxy_sim checks - expected {_psim_path}")
 if psim is not None:
     psim.CFG.update(mode="correct", trusted=["127.0.0.0/8"], real_ip_header="X-Forwarded-For",
                     real_ip_recursive="off", backend_ip="10.9.9.9")
@@ -169,8 +182,7 @@ if os.path.exists(log):
     tl = L.timeline(ent, "177.154.220.44")
     check("timeline ordered", tl[0].split()[0] <= tl[-1].split()[0], str(tl[:2]))
 else:
-    skipped.append("dataset checks (run tools/gen_dataset.py)")
-    print("  SKIP dataset missing")
+    skip("dataset checks (run tools/gen_dataset.py)", "dataset missing")
 
 print("== 5. canary consent gates ==")
 state_path = os.path.join(ROOT, "out", "canary_state_test.json")
@@ -200,10 +212,26 @@ finally:
     if os.path.exists(state_path):
         os.remove(state_path)
 
+ENRICHMENT = ("geo returns a country for 8.8.8.8", "anycast 8.8.8.8 lowers traceability",
+              "rdns finds dns.google PTR", "RDAP names the Tor exit block",
+              "TLS SNI cert parse", "pem decoder working on the live cert")
+
+
+def skip_enrichment(reason):
+    """Account for every check in section 6 that the network took away, one line each.
+
+    One summary line for six dropped checks is how a harness ends up 'passing' with a smaller
+    total than it should have - the slots have to land somewhere, in every mode, or a filtered
+    network is indistinguishable from a lab that lost a test.
+    """
+    for _n in ENRICHMENT:
+        skip(f"{_n} ({reason})")
+
+
 print("== 6. network enrichment (skips cleanly offline) ==")
+_why_down = "no outbound access"
 if OFFLINE:
-    skipped.append("--offline: geo/RDNS/RDAP/TLS enrichment")
-    print("  SKIP --offline given; no outbound lookups attempted")
+    _why_down = "--offline given, no outbound lookups attempted"
     net = None
 else:
     net = T.geo("8.8.8.8").get("country")
@@ -217,19 +245,32 @@ if net:
     thost, tport, tto = tls_target()
     c = T.tls_cert(thost, tport, os.environ.get("LAB_TLS_SNI", "one.one.one.one"), timeout=tto)
     if c.get("unreachable"):
-        skipped.append(f"TLS SNI cert parse (no usable path to {thost}:{tport})")
-        print(f"  SKIP TLS SNI cert - outbound 443 to {thost}:{tport} failed: {str(c.get('error'))[:70]}")
+        skip(f"TLS SNI cert parse (no usable path to {thost}:{tport})",
+             f"TLS SNI cert - outbound 443 to {thost}:{tport} failed: {str(c.get('error'))[:70]}")
         print("        not a lab defect; re-run without the filter, or LAB_TLS_HOST=<a host you can reach>")
+        skip("pem decoder working on the live cert (no outbound TLS to get one)")
     else:
         check(f"TLS SNI cert parses ({thost}:{tport})", bool(c.get("subject") or c.get("sans")), str(c)[:120])
-    if c.get("subject"):
-        check("pem decoder working", c.get("decoder") in ("cryptography", "openssl-cli", "ssl-text"), str(c.get("decoder")))
+        check("pem decoder working on the live cert",
+              c.get("decoder") in ("cryptography", "openssl-cli", "ssl-text"), str(c.get("decoder")))
 else:
-    skipped.append("all network enrichment checks (no outbound access)")
-    print("  SKIP no outbound network (or --offline)")
+    skip_enrichment(_why_down)
+    print("        not a lab defect: geo/RDNS/RDAP/TLS need to reach a registry")
 
 # pure function, no socket - must not be gated on having outbound TLS
 _pem0 = parse_pem("")
+# and the same with real content: data/test_cert.pem is a shipped self-signed fixture (public key
+# only, no private half in the repo), so this pins the parser on a box that has never seen 443
+_cert = os.path.join(ROOT, "data", "test_cert.pem")
+if os.path.exists(_cert):
+    _pfx = parse_pem(open(_cert, encoding="utf-8", errors="replace").read())
+    check("parse_pem decodes a shipped cert with no network at all",
+          _pfx.get("decoder", "").startswith("none") or
+          (bool(_pfx.get("subject")) and "lab.example.test" in _pfx.get("sans", [])),
+          str(_pfx)[:110])
+else:
+    skip("parse_pem on the shipped cert (no data/test_cert.pem in this tree)",
+         f"expected {_cert}")
 check("parse_pem degrades without deps (returns a dict, never raises)", isinstance(_pem0, dict), str(_pem0)[:80])
 
 print("== 7. pcap round-trip (write then read back with the same parser) ==")
@@ -277,8 +318,7 @@ if os.path.exists(pcap_path):
     check("rules carry FP list + ack procedure",
           all(r.get("false_positives") and r.get("ack") for r in DE.RULES), "missing ack/FP on some rule")
 else:
-    skipped.append("pcap checks (run tools/gen_pcap.py)")
-    print("  SKIP pcap not generated")
+    skip("pcap checks (run tools/gen_pcap.py)", "pcap not generated")
 
 print("== 8. audit rules on the two shipped configs ==")
 try:
@@ -358,8 +398,7 @@ if pem:
     parsed = N.parse_pem(pem)
     check("parse_pem decodes a live cert", bool(parsed.get("subject")), str(parsed)[:100])
 else:
-    skipped.append("parse_pem live-cert check (no network, or --offline)")
-    print("  SKIP no outbound network for cert parse")
+    skip("parse_pem live-cert check (no network, or --offline)", "no outbound network for cert parse")
 
 print("== 10. footprint model + roe gate ==")
 try:
@@ -578,6 +617,40 @@ try:
           getattr(sys.stdout, "encoding", "").lower().replace("-", "") == "utf8", str(sys.stdout.encoding))
     check("win.python_cmd names an interpreter the user can actually type",
           WIN.python_cmd() in ("py", "python3", "python"), WIN.python_cmd())
+    # fs_safe: this is the class of bug only another OS finds. The cache file for a reverse
+    # lookup was named from the address itself, so an IPv6 key ('rdns_2001:db8::1.json') was
+    # legal on the author's Linux box and an OSError on Windows, killing two run_all stages
+    # while every other check passed.
+    _illegal = _re.compile(r'''[<>:"/\\|?*\x00-\x1f]''')
+    _reserved = ("CON", "PRN", "AUX", "NUL")
+    _nasty = ["2001:4488:1060:1c4a:21e:10ff:fe9c:1a2b", 'a<b>|c"d*e?f', "CON", "NUL.txt",
+              "trailing. ", "..", "x" * 300, ""]
+    _made = [WIN.fs_safe(n) for n in _nasty]
+    check("win.fs_safe makes every name legal on Windows: no illegal chars, no reserved stem",
+          all(not _illegal.search(m) and 0 < len(m) <= 112
+              and m.split(".")[0].upper() not in _reserved for m in _made),
+          " | ".join(_made[:2]))
+    check("win.fs_safe leaves an already-legal key untouched (existing cache files stay valid)",
+          WIN.fs_safe("rdns_8.8.8.8") == "rdns_8.8.8.8" and WIN.fs_safe("geo_1.2.3.4") == "geo_1.2.3.4",
+          WIN.fs_safe("rdns_8.8.8.8"))
+    check("win.fs_safe cannot collide: two different addresses never share a cache file",
+          len(set(_made + [WIN.fs_safe("2001:db8::1"), WIN.fs_safe("2001_db8__1")])) == len(_made) + 2,
+          WIN.fs_safe("2001:db8::1") + " vs " + WIN.fs_safe("2001_db8__1"))
+    _key = "rdns_2001:db8::dead:beef"
+    _cpath = os.path.join(T.CACHE, WIN.fs_safe(_key) + ".json")
+    if os.path.exists(_cpath):
+        os.unlink(_cpath)
+    _probe = {"ptr": ["lab.example.test"], "resolver": "selftest"}
+    _refetched = []
+    _first = T._cached(_key, lambda: _probe)
+    _second = T._cached(_key, lambda: _refetched.append(1) or None)
+    check("tracer._cached round-trips an IPv6 key (this write raised OSError 22 on Windows)",
+          _first == _probe and _second == _probe and not _refetched, _cpath)
+    for _p in (_cpath,):
+        try:
+            os.unlink(_p)
+        except OSError:
+            pass
     unencoded, clis, guarded = [], 0, 0
     for src_file in sorted(_glob.glob(os.path.join(ROOT, "*", "*.py"))):
         # every package dir at one level down: lab, tools, apps, proxy_lab
@@ -598,6 +671,10 @@ try:
     check("every text-mode open() in the lab states encoding=utf-8", not unencoded, " | ".join(unencoded[:3]))
     check("every CLI entry point installs the console shim", clis == guarded and clis >= 20,
           f"{guarded}/{clis} entry points guarded")
+    _own = open(os.path.join(ROOT, "tools", "selftest.py"), encoding="utf-8").read()
+    _printers = [ln.strip() for ln in _own.splitlines() if _re.match(r'''print\(f?"  SKIP''', ln.strip())]
+    check("a SKIP cannot be printed without being recorded (skip() is the only producer)",
+          len(_printers) == 1, f"{len(_printers)} print sites: " + " | ".join(x[:40] for x in _printers[:3]))
 
     import shutil as _shutil
     _r = _sp.run([sys.executable, os.path.join(ROOT, "tools", "sync.py"), "status"],
@@ -606,8 +683,8 @@ try:
         check("sync.py status reports repo state (the bundle publishing path)",
               "tracked" in _r.stdout and "bundle" in _r.stdout, _r.stdout[:90])
     else:
-        skipped.append("sync.py status (no git here, or this tree is a plain copy, not a clone)")
-        print("  SKIP sync.py status - needs a git clone to be meaningful")
+        skip("sync.py status (no git here, or this tree is a plain copy, not a clone)",
+             "sync.py status - needs a git clone to be meaningful")
 except Exception as exc:  # noqa: BLE001
     failed.append(f"tracking/device tools: {type(exc).__name__}: {exc}")
     print("  FAIL", exc)

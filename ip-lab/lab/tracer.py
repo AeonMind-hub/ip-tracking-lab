@@ -14,6 +14,7 @@ import os
 import ssl
 import socket
 
+from . import win
 from .net import get_json, ip_kind, is_public
 
 RIR_HOSTS = {
@@ -30,7 +31,9 @@ CACHE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def _cached(key: str, fetch):
     """Cache public-registry answers so the lab is fast and offline-friendly."""
     os.makedirs(CACHE, exist_ok=True)
-    path = os.path.join(CACHE, key.replace("/", "_") + ".json")
+    # not just ':' -> '_': an IPv6 address in a filename is legal on Linux and illegal on
+    # Windows (OSError 22), which is exactly how this lab broke on a real machine
+    path = os.path.join(CACHE, win.fs_safe(key) + ".json")
     if os.path.exists(path):
         try:
             with open(path, encoding="utf-8", errors="replace") as fh:

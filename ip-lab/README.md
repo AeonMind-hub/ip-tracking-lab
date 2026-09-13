@@ -15,7 +15,7 @@ class in one deliberately broken app**, each one proven to fire and proven to be
 ```
 quickstart (60 seconds, no privileges)
   cd ip-lab
-  python3 tools/selftest.py            # 159 checks: prove the lab works, then trust it
+  python3 tools/selftest.py            # 165 checks: prove the lab works, then trust it
   python3 tools/selftest.py --offline  # same, minus the two checks that need outbound TLS
   # Windows? read WINDOWS.md first: `py` instead of `python3`, no pip, no admin - same commands
   python3 tools/dossier.py data/target_access.log --xff --only-sus
@@ -184,7 +184,7 @@ python3 tools/phish.py msg mail.eml                     # a real .eml: score + r
 python3 tools/webcheck.py --keep                      # leaves both up for hand-driven curl
 
 # Nothing left unverified
-python3 tools/selftest.py     # 159 checks: parsers, trust walk, pcap round-trip, rules, configs, shop guards
+python3 tools/selftest.py     # 165 checks: parsers, trust walk, pcap round-trip, rules, configs, shop guards
 python3 tools/selftest.py --offline   # skip the two that need outbound TLS (a filtered network is not a defect)
 python3 tools/run_all.py      # batch 1: 7 stages (selftest -> dataset -> dossier -> casefile -> v6 rollup -> canary -> web A/B)
 ```
@@ -213,7 +213,7 @@ ip-lab/
 │   ├── pcap.py                write + read pcap, flows, TCP reassembly — no dependencies
 │   └── detect.py              rule set over SQLite: 15 rules, each with FP list + ack procedure
 ├── tools/
-│   ├── selftest.py            159 checks; run it after every edit
+│   ├── selftest.py            165 checks; run it after every edit
 │   ├── gen_dataset.py         regenerate the fictional incident set (seeded)
 │   ├── gen_pcap.py            one script → pcap + truncated pcap + matching access log + key
 │   ├── dossier.py             CLI: log → per-address dossier + ranking
@@ -245,6 +245,7 @@ ip-lab/
 │                              open redirect, JWT alg=none, IDOR, mass assignment, CSRF-by-GET,
 │                              coupon race, upload, disclosure), --mode hard = the fixes
 ├── data/                      generated logs + captures + key.json (the answer keys)
+│                              + test_cert.pem (a public-key-only fixture for parse_pem)
 ├── notes/00-mechanics.md      what is built, what it does, how it is implemented
 ├── notes/01…09*.md            the nine lessons + 09-reference.md (the cheat sheet)
 ├── notes/10-opsec-and-ghosts.md  footprints, detection primitives, the discipline list

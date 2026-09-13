@@ -14,11 +14,24 @@ handled in code:
 Those three are pinned by checks: `tools/selftest.py` §12b parses a Windows-format `arp -a` table,
 round-trips a UTF-16 file through `read_arp_file`, asserts `sys.stdout.encoding == utf-8` after
 `ready()`, lints every `.py` in the repo for an `open()` without an encoding, and asserts every
-CLI installs the shim. 159 checks pass. What I could *not* do is run this on real Windows from
-here - the simulation used `LC_ALL=C PYTHONUTF8=0 PYTHONIOENCODING=ascii`, which reproduces the
-crash mode (an ASCII console, an ASCII default file encoding) and the whole suite passes under it,
-including `tools/run_all.py` and `tools/webcheck.py`. Treat "works on Windows" as strong inference,
-not a signed-off test, and tell me what breaks.
+CLI installs the shim. 165 checks pass, and they add up to 165 slots in every mode - network
+available (165 passed), port 443 filtered (162 passed, 3 skipped), `--offline` (159 passed,
+6 skipped) - because recording a skip and announcing it are now one operation (`skip()`), so a
+filtered network cannot quietly shrink the suite.
+
+What I could not do from here is run it on Windows at all: the simulation (`LC_ALL=C
+PYTHONUTF8=0 PYTHONIOENCODING=ascii`) reproduces the console and encoding crash modes, nothing
+else.
+
+That gap has been closed by the person this was written for, running it on real Windows with
+Python 3.14 from a fresh clone. Those runs found two defects that no Linux-side simulation would
+show: the console/`arp -a`/UTF-16 issues in the early runs, and `OSError: [Errno 22] Invalid
+argument` from a cache filename built out of an IPv6 address (`:` is legal in a Linux filename and
+illegal on Windows), which killed two `run_all` stages while every individual check still passed.
+Both are fixed and now pinned by checks - `lab/win.py:fs_safe()` plus four assertions, and the
+skip-accounting rule above. "Works on Windows" is a measured claim, not an inference. What is
+still unverified here, and marked as such: the Vagrant/Docker material, which needs a VM, and the
+`netinv.py --live` path beyond loopback.
 
 ---
 
@@ -70,15 +83,15 @@ py tools\selftest.py
 Expect, at the end:
 
 ```
-RESULT: 159 checks passed
+RESULT: 165 checks passed
 ```
 
-Two of those 159 need outbound TLS (a certificate probe against `1.1.1.1:443`). On a machine behind a
+Two of those 163 need outbound TLS (a certificate probe against `1.1.1.1:443`). On a machine behind a
 corporate proxy, an EDR product, or an ISP that filters 443 - which is exactly what happened on the
 first real-Windows run of this lab - you will instead see
 
 ```
-RESULT: 156 checks passed, 2 skipped: ['TLS SNI cert parse (no usable path to 1.1.1.1:443)', ...]
+RESULT: 162 checks passed, 3 skipped: ['TLS SNI cert parse (no usable path to 1.1.1.1:443)', ...]
 ```
 
 and the exit code is still 0, because a filtered network is not a lab defect. Make that explicit with
@@ -224,10 +237,17 @@ they are plain text otherwise, so `Get-Content notes\01-pipeline.md` is fine for
 - **`Address already in use`** - `netstat -ano | Select-String ":8097"` then `taskkill /PID <pid> /F`.
 - **`git clone` says `destination path ... already exists`** - that means you are still running the
   unzipped copy, so whatever you just measured is the *old* code (the selftest total is the tell:
-  156 slots there, 159 here). Clone beside it instead of over it, and use the new folder from now on:
+  156 slots there, 165 here). Clone beside it instead of over it, and use the new folder from now on:
   `git clone --branch main C:\lab\lab.bundle C:\lab\lab-git`. Nothing in the old folder is worth
   keeping unless you wrote notes in it - `git -C C:\lab\ip-tracking-lab status` will say "not a
   repository", which is how you confirm it holds no history you would lose.
+- **`OSError: [Errno 22] Invalid argument` mentioning a path like
+  `...\.cache\rdns_2001:4488:1060:...json`** - this one was a genuine bug in the lab, found by a
+  Windows user and not by me: the registry-lookup cache named its file after the address, and `:`
+  is legal in a Linux filename and illegal on Windows, so an IPv6 lookup died at the *write* while
+  every v4 check passed. `lab/win.py:fs_safe()` now sanitises any name the lab puts in a path, and
+  four selftest checks pin it (165 total). If you see it in an older tree, that tree is behind:
+  pull.
 - **`webcheck: 1 MISMATCH` on `E4`, or a row saying `unverified`** - the race harness needs two
   extra single-seat servers, and on Windows Defender can hold each `python.exe` for seconds while it
   scans. It now waits 30 s per attempt, gives up in ~3 s if the child actually died, retries three

@@ -12,7 +12,7 @@ A bundle is just a git repo in a file. No account, no token, no network, works t
 cd C:\lab
 git clone --branch main C:\lab\lab.bundle ip-tracking-lab
 cd ip-tracking-lab\ip-lab
-py tools\selftest.py            # RESULT: 158 checks passed
+py tools\selftest.py            # RESULT: 165 checks passed
 ```
 
 Verified exactly like this from a clean directory (clone the bundle, run the gate). If you would

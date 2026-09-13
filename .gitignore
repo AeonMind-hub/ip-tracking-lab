@@ -9,6 +9,10 @@ __pycache__/
 venv/
 node_modules/
 
+# Things that are not the lab: files you dropped in for me to read, and the
+# bundles/zips built from it. Never commit a paste-back of my own output.
+uploads/
+
 # Sync + packaging scratch (never part of the source)
 *.bundle
 ip-tracking-lab.zip
