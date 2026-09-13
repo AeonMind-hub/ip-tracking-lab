@@ -1,0 +1,81 @@
+{
+  "note": "generated from the same code path the analyst tools will read",
+  "flows": 226,
+  "truncation_demo": {
+    "102.89.33.4:49600->10.0.0.20:80": {
+      "incl": 1514,
+      "payload": 112
+    },
+    "10.0.0.20:80->102.89.33.4:49600": {
+      "incl": 1514,
+      "payload": 1464
+    }
+  },
+  "planted": {
+    "port_sweep": {
+      "src": "203.0.113.7",
+      "dst": "10.0.0.20",
+      "ports": 19
+    },
+    "ssh_bruteforce": {
+      "src": "203.0.113.7",
+      "dport": 22,
+      "conns": 12
+    },
+    "ato_via_proxy_bug": {
+      "true_client": "198.51.100.23",
+      "logged_as": "10.0.0.1",
+      "xff_claim": "198.51.100.23, 8.8.8.8",
+      "log_lines": 10
+    },
+    "exfil": {
+      "out_bytes_planted": 220080
+    },
+    "retrans_decoy": {
+      "flow": "102.89.33.4:49500->10.0.0.20:8443",
+      "retrans": 4
+    },
+    "stealth_shapes": {
+      "low_and_slow_probe": {
+        "src": "203.0.113.200",
+        "ports": 12,
+        "spacing_seconds": 150
+      },
+      "uniform_cadence": {
+        "src": "10.0.0.99",
+        "requests": 24,
+        "gap_seconds": 2.0
+      },
+      "distributed_stuffing": {
+        "account": "admin",
+        "sources": 9,
+        "tries_per_source": 2,
+        "why_it_is_quiet": "2 failures per source is under every per-IP threshold"
+      },
+      "beacon": {
+        "src": "10.0.0.88",
+        "dst": "203.0.113.9",
+        "dport": 443,
+        "planted_connections": 10,
+        "nominal_period_seconds": 60,
+        "jitter_seconds": 9,
+        "connections_in_pcap": 10
+      },
+      "session_split_brain": {
+        "sid": "S777",
+        "hits_planted": 2,
+        "profiles": [
+          "10.0.0.31 via iPhone Safari",
+          "198.51.100.77 via curl/8.4.0"
+        ]
+      },
+      "silent_http_flow": {
+        "src": "10.0.0.77",
+        "dport": 80,
+        "open_seconds": 1300,
+        "why_it_matters": "traffic without a log line is a finding by itself"
+      }
+    }
+  },
+  "read_first": "notes/07-detection.md"
+}

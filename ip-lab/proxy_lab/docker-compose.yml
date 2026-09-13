@@ -1,0 +1,31 @@
+# Same topology, containerised. Requires Docker. Everything here stays on the
+# compose network; no ports are published to the world by default.
+name: ip-lab-proxy
+services:
+  target:
+    image: python:3.12-alpine
+    working_dir: /lab
+    volumes: ["../:/lab"]
+    command: ["python", "apps/app.py", "--port", "8085", "--mode", "naive", "--backend-ip", "172.30.0.20"]
+    networks: [lab]
+  relay:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./relay/relay.conf:/etc/nginx/nginx.conf:ro
+      - ../out:/lab/out
+    depends_on: [target]
+    networks: [lab]
+  edge:
+    image: nginx:1.27-alpine
+    ports: ["8080:8080", "8088:8088"]
+    volumes:
+      - ./nginx/edge_naive.conf:/etc/nginx/naive.conf:ro
+      - ./nginx/edge_safe.conf:/etc/nginx/safe.conf:ro
+      - ./nginx/docker-entrypoint.d:/etc/nginx/conf.d:ro
+      - ../out:/lab/out
+    depends_on: [relay]
+    networks: [lab]
+networks:
+  lab:
+    driver: bridge
+    ipam: {config: [{subnet: 172.30.0.0/24}]}

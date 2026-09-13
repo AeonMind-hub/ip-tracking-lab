@@ -1,0 +1,65 @@
+{
+  "case1_recon_vpn": {
+    "title": "Recon sweep from a rented VPS, XFF spoofed",
+    "answer_ip": "45.148.10.66",
+    "verdict": "Automated enumeration from a datacenter, not a person.",
+    "lesson": [
+      "remote_addr (the TCP peer) is the only field the client cannot fake.",
+      "X-Forwarded-For: 127.0.0.1,8.8.8.8 is the attacker inventing values. A trusted proxy APPENDS the peer IP on the right.",
+      "Geo says Frankfurt because that is where the rented box lives, not where the human lives.",
+      "RDAP name field says 'limited privacy issue' -> the RIPE abuse contact exists but is only for the network operator."
+    ]
+  },
+  "case2_home_router_ato": {
+    "title": "Account takeover from a residential connection",
+    "answer_ip": "177.154.220.44",
+    "verdict": "Subscriber-level attribution requires the ISP, i.e. law enforcement or the ISP's own abuse desk.",
+    "lesson": [
+      "No XFF at all -> remote_addr IS the client (direct connection, no proxy).",
+      "Reverse DNS for BR154 is a real, documented pattern: ISPs encode the customer IP in the PTR name.",
+      "Geo city is ~10-50 km accurate on broadband and is NOT evidence. It is an investigative lead only.",
+      "You can go from IP -> ISP abuse contact. You cannot go IP -> human. That jump needs a legal process."
+    ]
+  },
+  "case3_leaky_headers": {
+    "title": "Leaked headers + an authorized bug-bounty probe that looks like an attack",
+    "answer_ip": "102.89.44.7",
+    "verdict": "Two different things: your OWN config leaked X-Backend-IP/Server, and the 'attack' traffic is an authorized tester with a signed scope header.",
+    "lesson": [
+      "Response headers are an attribution gift to whoever is looking: X-Backend-IP, X-Powered-By, Server, X-Debug-Trace.",
+      "A legit tester can look exactly like an attacker. Program context (HackerOne request headers, X-Request-Context, valid session) is what separates them.",
+      "X-Request-Context: safe@aeonlabs is what your WAF tag looks like from the inside. Do not assume 'odd header = bad guy'."
+    ]
+  },
+  "case4_ipv6_truncated": {
+    "title": "Credential stuffing from a dual-stack campus network",
+    "answer_ip": "2001:4488:1060:1c4a:21e:10ff:fe9c:1a2b",
+    "verdict": "You can prove a /64 subnet did it. The individual host is gone because logs stored only 4 segments.",
+    "lesson": [
+      "IPv6: the last 64 bits are usually the interface id; SLAAC randomisation makes even that unreliable.",
+      "A /64 to a university network is one building, possibly thousands of machines.",
+      "Retention policy IS an investigation policy. Truncated IPv6 + no request IDs = case closed before it opened.",
+      "Activity windows (04:00-07:00 local in the victim's timezone, plus a sleep gap) can hint at where the human sleeps. It is a probabilistic tell, not proof."
+    ]
+  },
+  "case5_tor_false_positive": {
+    "title": "The 'hacker' who was just a customer behind Tor",
+    "answer_ip": "185.220.101.34",
+    "verdict": "Tor exit node, yes. Attack, no. 6 requests to a public webhook, all 200.",
+    "lesson": [
+      "Tor exit IPs are famous: dnsbl-style listings + geo 'unknown' + a hostname ending in .exit.",
+      "Presence on a privacy network is not an attack. Volume, path, and outcome decide.",
+      "Blocking Tor may block the journalist, the activist, and the person whose ISP is garbage. Rate-limit, do not ban reflexively."
+    ]
+  },
+  "canary": {
+    "title": "Link canary hits",
+    "answer_ip": "127.0.0.1, 10.10.4.21, 45.148.10.66, 102.69.187.2",
+    "verdict": "Two consented testers, one scanner bot, one unknown mobile user.",
+    "lesson": [
+      "A canary tells you WHO-OPENED-WHAT-WHEN from the receiver side. It is a consent-boundary instrument: it is fine on your own issue tracker or your own doc, and it is a crime-adjacent tool the moment you target a specific person with it.",
+      "10.10.4.21 is a private RFC1918 address -> it only means 'someone inside your network'; NAT means you cannot map it to a person without your own DHCP logs, and touching those needs authority + policy.",
+      "open.png with status 200 = the click was confirmed by an image fetch (a plain redirect can be pre-fetched by link scanners and gives false positives)."
+    ]
+  }
+}

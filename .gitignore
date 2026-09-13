@@ -1,0 +1,21 @@
+# Generated artefacts - everything here is rebuilt by `python3 tools/run_all.py`
+out/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.cache/
+.venv/
+venv/
+node_modules/
+
+# Sync + packaging scratch (never part of the source)
+*.bundle
+ip-tracking-lab.zip
+*.tmp
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,12 @@
+# Standard library only. Nothing to install.
+#
+# Optional, if you want the richer cert decoder path in lab/net.py::parse_pem
+# (it falls back to the `openssl` CLI, then to a bare no-decode, so this is a
+# nicety, not a requirement):
+#
+#   cryptography>=42
+#
+# If you build the §4.4 network lab in a VM, these are the tools to install there:
+#   apt-get install -y bind9-utils whois traceroute mtr-tiny tcpdump nmap curl jq
+# and, for the web half, only inside authorised scope:
+#   nuclei, ffuf, httpx (projectdiscovery), sqlmap

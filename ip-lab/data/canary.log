@@ -1,0 +1,8 @@
+127.0.0.1 - - [12/Sep/2026:08:00:00 +0000] "GET /c/tok_9f3a1c HTTP/1.1" 302 1723 "https://mail.aeonlabs.test/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" "-"
+10.10.4.21 - - [12/Sep/2026:08:04:00 +0000] "GET /c/tok_9f3a1c HTTP/1.1" 302 7817 "https://mail.aeonlabs.test/" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1" "-"
+10.10.4.21 - - [12/Sep/2026:08:04:00 +0000] "GET /c/tok_9f3a1c/open.png HTTP/1.1" 200 7080 "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1" "-"
+45.148.10.66 - - [12/Sep/2026:09:31:00 +0000] "GET /c/tok_9f3a1c HTTP/1.1" 302 5209 "https://github.com/aeonlabs/security/issues/12" "python-requests/2.31.0" "-"
+45.148.10.66 - - [12/Sep/2026:09:31:00 +0000] "GET /c/tok_9f3a1c/open.png HTTP/1.1" 200 7277 "-" "python-requests/2.31.0" "-"
+102.69.187.2 - - [12/Sep/2026:10:20:00 +0000] "GET /c/tok_9f3a1c HTTP/1.1" 302 1103 "https://t.co/xyz" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1" "-"
+102.69.187.2 - - [12/Sep/2026:10:20:00 +0000] "GET /c/tok_9f3a1c/open.png HTTP/1.1" 200 8516 "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1" "-"
+

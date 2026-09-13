@@ -1,0 +1,42 @@
+# ip-lab three-VM network. Requires Vagrant + VirtualBox (or UTM/libvirt provider).
+#
+#   cd ip-lab && vagrant up
+#   vagrant ssh target      # no route to the internet: nothing you do from here can hit a stranger
+#   vagrant ssh edge
+#
+# Topology (192.168.50.0/24 = the "internet" segment, 192.168.60.0/24 = the private one)
+#
+#   host ──> edge  192.168.50.10  (nginx, both configs: naive :8080 / safe :8088)
+#                    └──> relay 192.168.50.11 + 192.168.60.10   ("commercial VPN exit")
+#                              └──> target 192.168.60.20         (origin app, python3 apps/app.py)
+#
+# The exercise: send the SAME forged XFF request through :8080 and :8088, then diff
+# what the target logged, while running `tcpdump -i any -nn -s0 port 80 -w lab.pcap`
+# on the target so you can read the headers off the wire yourself.
+#
+# NOTE: `vagrant`/`VBoxManage` are NOT installed in the Arena sandbox this lab was
+# authored in, so this file is unverified-by-execution. `bash -n` on the provisioning
+# scripts is clean; the nginx configs were verified on this box directly (see README).
+
+Vagrant.configure("2") do |cfg|
+  cfg.vm.box = "generic/ubuntu2404"
+
+  cfg.vm.define "target" do |t|
+    t.vm.network "private_network", ip: "192.168.60.20"
+    t.vm.provider "virtualbox" { |v| v.memory = 512; v.cpus = 1 }
+    t.vm.provision "shell", path: "provision/target.sh"
+  end
+
+  cfg.vm.define "relay" do |r|
+    r.vm.network "private_network", ip: "192.168.60.10"
+    r.vm.network "private_network", ip: "192.168.50.11"
+    r.vm.provider "virtualbox" { |v| v.memory = 512; v.cpus = 1 }
+    r.vm.provision "shell", path: "provision/relay.sh"
+  end
+
+  cfg.vm.define "edge" do |e|
+    e.vm.network "private_network", ip: "192.168.50.10"
+    e.vm.provider "virtualbox" { |v| v.memory = 512; v.cpus = 1 }
+    e.vm.provision "shell", path: "provision/edge.sh"
+  end
+end

@@ -1,0 +1,18 @@
+# Normalise line endings so a Windows checkout stays usable:
+# the .sh demos must keep LF or Git Bash chokes on `set -u\r`, and the nginx
+# configs are parsed line-by-line by tools/audit.py.
+* text=auto eol=lf
+
+# ...but never touch a binary, or the pcap's byte offsets change under you.
+*.pcap binary
+*.bundle binary
+*.zip binary
+*.png binary
+*.p12 binary
+
+# Diff hygiene for the generated-looking files (they are deterministic, but noise is noise).
+data/target_access.log text
+out/webcheck.json text
+
+# Markdown: treat fenced blocks as content, not as things to rewrap.
+*.md text eol=lf
